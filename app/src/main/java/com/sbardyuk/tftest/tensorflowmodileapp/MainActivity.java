@@ -23,8 +23,10 @@ public class MainActivity extends Activity {
     private static final float IMAGE_STD = 1;
     private static final String INPUT_NAME = "input";
     private static final String OUTPUT_NAME = "output";
+
     private static final String MODEL_FILE = "file:///android_asset/tensorflow_inception_graph.pb";
     private static final String LABEL_FILE = "file:///android_asset/imagenet_comp_graph_label_strings.txt";
+
     private Handler handler;
     private HandlerThread handlerThread;
     private Bitmap croppedBitmap = null;
