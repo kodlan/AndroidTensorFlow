@@ -56,7 +56,6 @@ public class TensorFlowImageClassifier implements Classifier {
      * @param imageStd      The assumed std of the image values.
      * @param inputName     The label of the image input node.
      * @param outputName    The label of the output node.
-     * @throws IOException
      */
     public static Classifier create(
             AssetManager assetManager,
