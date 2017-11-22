@@ -14,6 +14,7 @@ public interface Classifier {
 
     void close();
 
+
     /**
      * An immutable result returned by a Classifier describing what was recognized.
      */
