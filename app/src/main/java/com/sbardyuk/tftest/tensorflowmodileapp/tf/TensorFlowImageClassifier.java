@@ -8,9 +8,6 @@ import android.util.Log;
 import org.tensorflow.Operation;
 import org.tensorflow.contrib.android.TensorFlowInferenceInterface;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -32,7 +29,7 @@ public class TensorFlowImageClassifier implements Classifier {
     private float imageStd;
 
     // Pre-allocated buffers.
-    private Vector<String> labels = new Vector<String>();
+    private Vector<String> labels = new Vector<>();
     private int[] intValues;
     private float[] floatValues;
     private float[] outputs;
@@ -45,46 +42,14 @@ public class TensorFlowImageClassifier implements Classifier {
     private TensorFlowImageClassifier() {
     }
 
-    /**
-     * Initializes a native TensorFlow session for classifying images.
-     *
-     * @param assetManager  The asset manager to be used to load assets.
-     * @param modelFilename The filepath of the model GraphDef protocol buffer.
-     * @param labelFilename The filepath of label file for classes.
-     * @param inputSize     The input size. A square image of inputSize x inputSize is assumed.
-     * @param imageMean     The assumed mean of the image values.
-     * @param imageStd      The assumed std of the image values.
-     * @param inputName     The label of the image input node.
-     * @param outputName    The label of the output node.
-     */
-    public static Classifier create(
-            AssetManager assetManager,
-            String modelFilename,
-            String labelFilename,
-            int inputSize,
-            int imageMean,
-            float imageStd,
-            String inputName,
-            String outputName) {
+    public static Classifier create(AssetManager assetManager, String modelFilename,
+            List<String> labels, int inputSize, int imageMean, float imageStd,
+            String inputName, String outputName) {
         TensorFlowImageClassifier c = new TensorFlowImageClassifier();
         c.inputName = inputName;
         c.outputName = outputName;
 
-        // Read the label names into memory.
-        // TODO(andrewharp): make this handle non-assets.
-        String actualFilename = labelFilename.split("file:///android_asset/")[1];
-        Log.i(TAG, "Reading labels from: " + actualFilename);
-        BufferedReader br = null;
-        try {
-            br = new BufferedReader(new InputStreamReader(assetManager.open(actualFilename)));
-            String line;
-            while ((line = br.readLine()) != null) {
-                c.labels.add(line);
-            }
-            br.close();
-        } catch (IOException e) {
-            throw new RuntimeException("Problem reading label file!", e);
-        }
+        c.labels.addAll(labels);
 
         c.inferenceInterface = new TensorFlowInferenceInterface(assetManager, modelFilename);
 
