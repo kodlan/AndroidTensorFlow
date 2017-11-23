@@ -24,8 +24,6 @@ public class MainActivity extends Activity {
     private static final String TAG = "MainActivity";
 
     private static final int INPUT_SIZE = 28;
-    private static final int IMAGE_MEAN = 128;
-    private static final float IMAGE_STD = 128;
     private static final String INPUT_NAME = "input_1";
     private static final String OUTPUT_NAME = "fc/Softmax";
 
@@ -84,8 +82,7 @@ public class MainActivity extends Activity {
     public void createClassifier() {
         classifier = TensorFlowImageClassifier.create(getAssets(),
                 MODEL_FILE, Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"),
-                INPUT_SIZE, IMAGE_MEAN, IMAGE_STD,
-                INPUT_NAME, OUTPUT_NAME);
+                INPUT_SIZE, INPUT_NAME, OUTPUT_NAME);
         classifier.enableStatLogging(true);
     }
 
@@ -93,11 +90,17 @@ public class MainActivity extends Activity {
         runInBackground(new Runnable() {
             @Override
             public void run() {
-                Bitmap testBitmap = loadTestBitmap("1.jpg");
-                recognizeImage(testBitmap);
-                testBitmap = loadTestBitmap("2.jpg");
-                recognizeImage(testBitmap);
+                loadAndProcessImage("1.jpg");
+                loadAndProcessImage("2.jpg");
+                loadAndProcessImage("3.jpg");
+                loadAndProcessImage("4.jpg");
+                loadAndProcessImage("5.jpg");
+                loadAndProcessImage("6.jpg");
+                loadAndProcessImage("7.jpg");
+                loadAndProcessImage("8.jpg");
+                loadAndProcessImage("9.jpg");
 
+                // show last TF input
                 final Bitmap bit = getProcessedImage(((TensorFlowImageClassifier)classifier).getFloatValues());
                 uiHandler.post(new Runnable() {
                     @Override
@@ -111,23 +114,29 @@ public class MainActivity extends Activity {
         });
     }
 
-    private Bitmap getProcessedImage(float [] pixels) {
-        int [] intPixels = new int [28* 28];
-        for (int i=0; i<28*28; i++) {
-            int gray = (int) (pixels[i] * IMAGE_STD + IMAGE_MEAN);
-            intPixels[i] = Color.rgb(gray, gray, gray);
-        }
-        return Bitmap.createBitmap(intPixels, 28, 28, Bitmap.Config.ARGB_8888);
+    private void loadAndProcessImage(String imageName) {
+        Bitmap testBitmap = loadTestBitmap(imageName);
+        recognizeImage(testBitmap, imageName);
     }
 
-    private void recognizeImage(Bitmap bitmap) {
+    private Bitmap getProcessedImage(float [] pixels) {
+        int [] intPixels = new int [INPUT_SIZE * INPUT_SIZE];
+        for (int i = 0; i < INPUT_SIZE * INPUT_SIZE; i++) {
+            int gray = (int) (pixels[i] * 255);
+            intPixels[i] = Color.rgb(gray, gray, gray);
+        }
+        return Bitmap.createBitmap(intPixels, INPUT_SIZE, INPUT_SIZE, Bitmap.Config.ARGB_8888);
+    }
+
+    private void recognizeImage(Bitmap bitmap, String bitmapName) {
         final long startTime = SystemClock.uptimeMillis();
         final List<Classifier.Recognition> results = classifier.recognizeImage(bitmap);
         long processionTime = SystemClock.uptimeMillis() - startTime;
 
-        Log.d(TAG, "Processing time = " + processionTime / 1000f);
+        Log.d(TAG, "Bitmap = " + bitmapName);
+        Log.d(TAG, "\tProcessing time = " + processionTime / 1000f);
         logResult(results);
-        Log.d(TAG, "Stats = " + classifier.getStatString());
+        //Log.d(TAG, "Stats = " + classifier.getStatString());
     }
 
     private Bitmap loadTestBitmap(String fileName) {
@@ -142,7 +151,7 @@ public class MainActivity extends Activity {
 
     private void logResult(List<Classifier.Recognition> results) {
         for (Classifier.Recognition r : results) {
-            Log.d(TAG, r.toString());
+            Log.d(TAG, "\t" + r.toString());
         }
     }
 }

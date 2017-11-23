@@ -2,7 +2,6 @@ package com.sbardyuk.tftest.tensorflowmodileapp.tf;
 
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
-import android.graphics.Color;
 import android.os.Trace;
 import android.support.annotation.NonNull;
 import android.util.Log;
@@ -27,8 +26,6 @@ public class TensorFlowImageClassifier implements Classifier {
     private String inputName;
     private String outputName;
     private int inputSize;
-    private int imageMean;
-    private float imageStd;
 
     // Pre-allocated buffers.
     private Vector<String> labels = new Vector<>();
@@ -44,9 +41,7 @@ public class TensorFlowImageClassifier implements Classifier {
     private TensorFlowImageClassifier() {
     }
 
-    public static Classifier create(AssetManager assetManager, String modelFilename,
-            List<String> labels, int inputSize, int imageMean, float imageStd,
-            String inputName, String outputName) {
+    public static Classifier create(AssetManager assetManager, String modelFilename, List<String> labels, int inputSize, String inputName, String outputName) {
         TensorFlowImageClassifier c = new TensorFlowImageClassifier();
         c.inputName = inputName;
         c.outputName = outputName;
@@ -64,8 +59,6 @@ public class TensorFlowImageClassifier implements Classifier {
         // the placeholder node for input in the graphdef typically used does not specify a shape, so it
         // must be passed in as a parameter.
         c.inputSize = inputSize;
-        c.imageMean = imageMean;
-        c.imageStd = imageStd;
 
         // Pre-allocate buffers.
         c.outputNames = new String[]{outputName};
@@ -115,12 +108,12 @@ public class TensorFlowImageClassifier implements Classifier {
         for (int i = 0; i < intValues.length; i++) {
             final int val = intValues[i];
             // grayscale value
-            int r = Color.red(val); //val >> 16) & 0xFF;
-            int g = Color.green(val);//val >> 8)  & 0xFF;
-            int b = Color.blue(val);//(val)       & 0xFF;
+            int r = (val >> 16) & 0xFF;
+            int g = (val >> 8)  & 0xFF;
+            int b = (val)       & 0xFF;
             floatValues[i] = (r + g + b) / 3f;
             // normalize
-            floatValues[i] = (floatValues[i] - imageMean) / imageStd;
+            floatValues[i] = 1 - (floatValues[i]) / 255;
         }
     }
 
