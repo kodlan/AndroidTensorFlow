@@ -93,7 +93,7 @@ public class TensorFlowImageClassifier implements Classifier {
 
         // Copy the input data into TensorFlow.
         Trace.beginSection("feed");
-        inferenceInterface.feed(inputName, floatValues, 1, inputSize, inputSize, 3);
+        inferenceInterface.feed(inputName, floatValues, 3, inputSize, inputSize);
         Trace.endSection();
 
         // Run the inference call.
