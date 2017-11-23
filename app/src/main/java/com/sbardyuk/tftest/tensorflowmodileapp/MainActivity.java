@@ -3,12 +3,13 @@ package com.sbardyuk.tftest.tensorflowmodileapp;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.util.Log;
-import android.util.Size;
+import android.widget.ImageView;
 
 import com.sbardyuk.tftest.tensorflowmodileapp.tf.Classifier;
 import com.sbardyuk.tftest.tensorflowmodileapp.tf.TensorFlowImageClassifier;
@@ -29,16 +30,19 @@ public class MainActivity extends Activity {
     private static final String OUTPUT_NAME = "fc/Softmax";
 
     private static final String MODEL_FILE = "file:///android_asset/cnn_model.pb";
-    private static final String LABEL_FILE = "file:///android_asset/imagenet_comp_graph_label_strings.txt";
 
     private Handler handler;
+    private Handler uiHandler;
     private HandlerThread handlerThread;
     private Classifier classifier;
+
+    private ImageView imageView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        imageView = findViewById(R.id.imageView);
     }
 
     @Override
@@ -48,6 +52,7 @@ public class MainActivity extends Activity {
         handlerThread = new HandlerThread("inference");
         handlerThread.start();
         handler = new Handler(handlerThread.getLooper());
+        uiHandler = new Handler();
 
         createClassifier();
         processImage();
@@ -89,16 +94,40 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 Bitmap testBitmap = loadTestBitmap("1.jpg");
+                recognizeImage(testBitmap);
+                testBitmap = loadTestBitmap("2.jpg");
+                recognizeImage(testBitmap);
 
-                final long startTime = SystemClock.uptimeMillis();
-                final List<Classifier.Recognition> results = classifier.recognizeImage(testBitmap);
+                final Bitmap bit = getProcessedImage(((TensorFlowImageClassifier)classifier).getFloatValues());
+                uiHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        imageView.setImageBitmap(bit);
+                    }
+                });
 
-                long processionTime = SystemClock.uptimeMillis() - startTime;
-
-                Log.d(TAG, "Processing time = " + processionTime);
-                Log.d(TAG, "Recognized class = ");
+                classifier.close();
             }
         });
+    }
+
+    private Bitmap getProcessedImage(float [] pixels) {
+        int [] intPixels = new int [28* 28];
+        for (int i=0; i<28*28; i++) {
+            int gray = (int) (pixels[i] * IMAGE_STD + IMAGE_MEAN);
+            intPixels[i] = Color.rgb(gray, gray, gray);
+        }
+        return Bitmap.createBitmap(intPixels, 28, 28, Bitmap.Config.ARGB_8888);
+    }
+
+    private void recognizeImage(Bitmap bitmap) {
+        final long startTime = SystemClock.uptimeMillis();
+        final List<Classifier.Recognition> results = classifier.recognizeImage(bitmap);
+        long processionTime = SystemClock.uptimeMillis() - startTime;
+
+        Log.d(TAG, "Processing time = " + processionTime / 1000f);
+        logResult(results);
+        Log.d(TAG, "Stats = " + classifier.getStatString());
     }
 
     private Bitmap loadTestBitmap(String fileName) {
@@ -108,6 +137,12 @@ public class MainActivity extends Activity {
         }
         catch(IOException ex) {
             throw new IllegalArgumentException("File not found");
+        }
+    }
+
+    private void logResult(List<Classifier.Recognition> results) {
+        for (Classifier.Recognition r : results) {
+            Log.d(TAG, r.toString());
         }
     }
 }

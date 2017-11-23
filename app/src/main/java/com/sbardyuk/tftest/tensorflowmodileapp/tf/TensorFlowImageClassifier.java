@@ -2,7 +2,9 @@ package com.sbardyuk.tftest.tensorflowmodileapp.tf;
 
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.os.Trace;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import org.tensorflow.Operation;
@@ -68,7 +70,7 @@ public class TensorFlowImageClassifier implements Classifier {
         // Pre-allocate buffers.
         c.outputNames = new String[]{outputName};
         c.intValues = new int[inputSize * inputSize];
-        c.floatValues = new float[inputSize * inputSize * 3];
+        c.floatValues = new float[inputSize * inputSize];
         c.outputs = new float[numClasses];
 
         return c;
@@ -76,24 +78,15 @@ public class TensorFlowImageClassifier implements Classifier {
 
     @Override
     public List<Recognition> recognizeImage(final Bitmap bitmap) {
-        // Log this method so that it can be analyzed with systrace.
         Trace.beginSection("recognizeImage");
 
         Trace.beginSection("preprocessBitmap");
-        // Preprocess the image data from 0-255 int to normalized float based
-        // on the provided parameters.
-        bitmap.getPixels(intValues, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
-        for (int i = 0; i < intValues.length; ++i) {
-            final int val = intValues[i];
-            floatValues[i * 3 + 0] = (((val >> 16) & 0xFF) - imageMean) / imageStd;
-            floatValues[i * 3 + 1] = (((val >> 8) & 0xFF) - imageMean) / imageStd;
-            floatValues[i * 3 + 2] = ((val & 0xFF) - imageMean) / imageStd;
-        }
+        processImage(bitmap);
         Trace.endSection();
 
         // Copy the input data into TensorFlow.
         Trace.beginSection("feed");
-        inferenceInterface.feed(inputName, floatValues, 3, inputSize, inputSize);
+        inferenceInterface.feed(inputName, floatValues, 1, 1, inputSize, inputSize);
         Trace.endSection();
 
         // Run the inference call.
@@ -107,30 +100,58 @@ public class TensorFlowImageClassifier implements Classifier {
         Trace.endSection();
 
         // Find the best classifications.
-        PriorityQueue<Recognition> pq =
-                new PriorityQueue<Recognition>(
-                        3,
-                        new Comparator<Recognition>() {
-                            @Override
-                            public int compare(Recognition lhs, Recognition rhs) {
-                                // Intentionally reversed to put high confidence at the head of the queue.
-                                return Float.compare(rhs.getConfidence(), lhs.getConfidence());
-                            }
-                        });
-        for (int i = 0; i < outputs.length; ++i) {
-            if (outputs[i] > THRESHOLD) {
-                pq.add(
-                        new Recognition(
-                                "" + i, labels.size() > i ? labels.get(i) : "unknown", outputs[i], null));
-            }
+        PriorityQueue<Recognition> pq = getRecognitionsPriorityQueue();
+        processOutput(pq);
+
+        final List<Recognition> recognitions = getRecognitionsArray(pq);
+        Trace.endSection(); // "recognizeImage"
+        return recognitions;
+    }
+
+    private void processImage(Bitmap bitmap) {
+        // Preprocess the image data from 0-255 int to normalized float based on the provided parameters.
+        bitmap.getPixels(intValues, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
+
+        for (int i = 0; i < intValues.length; i++) {
+            final int val = intValues[i];
+            // grayscale value
+            int r = Color.red(val); //val >> 16) & 0xFF;
+            int g = Color.green(val);//val >> 8)  & 0xFF;
+            int b = Color.blue(val);//(val)       & 0xFF;
+            floatValues[i] = (r + g + b) / 3f;
+            // normalize
+            floatValues[i] = (floatValues[i] - imageMean) / imageStd;
         }
-        final ArrayList<Recognition> recognitions = new ArrayList<Recognition>();
+    }
+
+    @NonNull
+    private List<Recognition> getRecognitionsArray(PriorityQueue<Recognition> pq) {
+        final ArrayList<Recognition> recognitions = new ArrayList<>();
         int recognitionsSize = Math.min(pq.size(), MAX_RESULTS);
         for (int i = 0; i < recognitionsSize; ++i) {
             recognitions.add(pq.poll());
         }
-        Trace.endSection(); // "recognizeImage"
         return recognitions;
+    }
+
+    private void processOutput(PriorityQueue<Recognition> pq) {
+        for (int i = 0; i < outputs.length; ++i) {
+            if (outputs[i] > THRESHOLD) {
+                pq.add(new Recognition("" + i, labels.size() > i ? labels.get(i) : "unknown", outputs[i], null));
+            }
+        }
+    }
+
+    @NonNull
+    private PriorityQueue<Recognition> getRecognitionsPriorityQueue() {
+        return new PriorityQueue<>(MAX_RESULTS,
+                new Comparator<Recognition>() {
+                    @Override
+                    public int compare(Recognition lhs, Recognition rhs) {
+                        // Intentionally reversed to put high confidence at the head of the queue.
+                        return Float.compare(rhs.getConfidence(), lhs.getConfidence());
+                    }
+                });
     }
 
     @Override
@@ -146,5 +167,13 @@ public class TensorFlowImageClassifier implements Classifier {
     @Override
     public void close() {
         inferenceInterface.close();
+    }
+
+    public float[] getFloatValues() {
+        return floatValues;
+    }
+
+    public int[] getIntValues() {
+        return intValues;
     }
 }
